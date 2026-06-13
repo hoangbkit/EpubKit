@@ -52,7 +52,22 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: tsickert/discord-webhook@v7.0.0
+      - uses: actions/checkout@v6
         with:
-          webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
-          content: "${{ needs.test.result == 'success' && '✅' || needs.test.result == 'cancelled' && '⚠️' || '❌' }} **CI ${{ needs.test.result == 'success' && 'Passed' || needs.test.result == 'cancelled' && 'Cancelled' || 'Failed' }}** - ${{ github.repository }}@${{ github.ref_name }}\nCommit: ${{ github.sha }}\nRun: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}>"
+          fetch-depth: 1
+      - name: Send Discord notification
+        env:
+          STATUS: ${{ needs.test.result }}
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "$STATUS" = "success" ]; then EMOJI="✅"; TEXT="Passed"
+          elif [ "$STATUS" = "cancelled" ]; then EMOJI="⚠️"; TEXT="Cancelled"
+          else EMOJI="❌"; TEXT="Failed"
+          fi
+          MSG=$(git log --format=%s -1)
+          curl -s -X POST -H "Content-Type: application/json" \
+            -d "{\"content\":\"${EMOJI} **CI ${TEXT}**\n\`$(echo $SHA | cut -c1-7)\` ${MSG}\nBranch: ${BRANCH}\nRun: ${RUN_URL}\"}" \
+            "$WEBHOOK"
