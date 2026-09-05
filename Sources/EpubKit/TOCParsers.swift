@@ -74,8 +74,20 @@ enum NavDocumentParser {
                     return tag == "span" || tag == "div"
                 })
 
-            let title = ((try? labelElement?.text()) ?? nil)?.epub_trimmedOrNil
-            let rawHref = ((try? anchor?.attr("href")) ?? nil)?.epub_trimmedOrNil
+            let title: String?
+            if let labelElement {
+                title = (try? labelElement.text())?.epub_trimmedOrNil
+            } else {
+                title = nil
+            }
+
+            let rawHref: String?
+            if let anchor {
+                rawHref = (try? anchor.attr("href"))?.epub_trimmedOrNil
+            } else {
+                rawHref = nil
+            }
+
             let href = rawHref.map { EPUBPathResolver.resolve(basePath: basePath, href: $0) }
             let nestedList = directChildren.first(where: {
                 let tag = $0.tagName().lowercased()
