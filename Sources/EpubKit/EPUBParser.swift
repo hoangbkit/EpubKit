@@ -50,6 +50,7 @@ public struct EPUBParser: Sendable {
         let toc = options.parseTableOfContentsTitles
             ? loadTOC(reader: reader, opf: opf, opfBasePath: opfBasePath, diagnostics: &diagnostics)
             : EPUBTOC()
+        let cover = loadCover(reader: reader, opf: opf, opfBasePath: opfBasePath, diagnostics: &diagnostics)
 
         var chapters: [EPUBChapter] = []
         let totalSpineItems = opf.spine.count
@@ -146,7 +147,13 @@ public struct EPUBParser: Sendable {
             throw EPUBParserError.noReadableContent
         }
 
-        return EPUBDocument(metadata: opf.metadata, chapters: chapters, diagnostics: diagnostics)
+        return EPUBDocument(
+            metadata: opf.metadata,
+            chapters: chapters,
+            cover: cover,
+            tableOfContents: toc.items,
+            diagnostics: diagnostics
+        )
     }
 
     public func parseAsync(
@@ -170,6 +177,48 @@ public struct EPUBParser: Sendable {
             || href.hasSuffix(".xhtml")
             || href.hasSuffix(".html")
             || href.hasSuffix(".htm")
+    }
+
+    private func loadCover(
+        reader: ArchiveDataReader,
+        opf: OPFDocument,
+        opfBasePath: String,
+        diagnostics: inout [EPUBDiagnostic]
+    ) -> EPUBCover? {
+        let epub3Cover = opf.manifest.values.first {
+            $0.properties.contains { $0.caseInsensitiveCompare("cover-image") == .orderedSame }
+        }
+        let legacyCover = opf.coverItemID.flatMap { opf.manifest[$0] }
+
+        guard let item = epub3Cover ?? legacyCover else {
+            return nil
+        }
+
+        let coverPath = EPUBPathResolver.resolve(basePath: opfBasePath, href: item.href)
+        guard item.mediaType.lowercased().hasPrefix("image/") else {
+            diagnostics.append(
+                EPUBDiagnostic(
+                    severity: .info,
+                    message: "EPUB cover metadata points to a non-image resource.",
+                    path: coverPath
+                )
+            )
+            return nil
+        }
+
+        do {
+            let data = try reader.readData(coverPath)
+            return EPUBCover(data: data, mediaType: item.mediaType, href: coverPath)
+        } catch {
+            diagnostics.append(
+                EPUBDiagnostic(
+                    severity: .info,
+                    message: "Unable to load EPUB cover: \(error.localizedDescription)",
+                    path: coverPath
+                )
+            )
+            return nil
+        }
     }
 
     private func loadTOC(
