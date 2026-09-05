@@ -301,7 +301,18 @@ EpubKit should remain the ingestion layer. The host application should own:
 A macOS SwiftUI demo is included at:
 
 ```text
-Demo/EpubKitDemo/EpubKitDemo.xcodeproj
+Demo/EpubKitDemo
+```
+
+The demo project is generated with XcodeGen from `Demo/EpubKitDemo/project.yml`; the generated `EpubKitDemo.xcodeproj` is intentionally not committed.
+
+Generate and open it with:
+
+```sh
+cd Demo/EpubKitDemo
+brew install xcodegen # once, if needed
+xcodegen generate
+open EpubKitDemo.xcodeproj
 ```
 
 It demonstrates:
@@ -314,7 +325,7 @@ It demonstrates:
 - extracted-text preview
 - copying selected chapter text or all extracted text
 
-The demo references the root repository as a local Swift Package dependency at `../..`.
+The generated project references the root repository as a local Swift Package dependency at `../..`.
 
 ## Testing
 
@@ -336,7 +347,7 @@ The package includes generated and fixture-based EPUB tests covering core parsin
 - parser options
 - async parsing and cancellation
 
-GitHub Actions runs `swift test` for pushes to `master` and pull requests targeting `master`.
+GitHub Actions runs `swift test` for pushes to `master` and pull requests targeting `master`. On the Apple Silicon macOS runner, CI also verifies `arm64`, generates the demo project with XcodeGen, and builds the `EpubKitDemo` scheme with `xcodebuild`.
 
 ## Changelog
 
