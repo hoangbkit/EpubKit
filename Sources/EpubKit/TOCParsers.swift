@@ -67,7 +67,6 @@ enum NavDocumentParser {
 
             let directChildren = child.children().array()
             let anchor = directChildren.first(where: { $0.tagName().lowercased() == "a" })
-                ?? ((try? child.select("a[href]"))?.array().first)
             let labelElement = anchor
                 ?? directChildren.first(where: {
                     let tag = $0.tagName().lowercased()
