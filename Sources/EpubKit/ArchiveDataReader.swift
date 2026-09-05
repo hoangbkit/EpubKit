@@ -27,15 +27,17 @@ final class ArchiveDataReader {
         if let string = String(data: data, encoding: .utf8) {
             return string
         }
-        if let string = String(data: data, encoding: .utf16) {
+
+        if hasUTF16ByteOrderMark(data),
+           let string = String(data: data, encoding: .utf16) {
             return string
         }
-        if let string = String(data: data, encoding: .utf16LittleEndian) {
+
+        if let encoding = inferredUTF16Encoding(data),
+           let string = String(data: data, encoding: encoding) {
             return string
         }
-        if let string = String(data: data, encoding: .utf16BigEndian) {
-            return string
-        }
+
         if let string = String(data: data, encoding: .isoLatin1) {
             return string
         }
@@ -81,6 +83,40 @@ final class ArchiveDataReader {
         }
 
         return data
+    }
+
+    private func hasUTF16ByteOrderMark(_ data: Data) -> Bool {
+        guard data.count >= 2 else { return false }
+        return (data[data.startIndex] == 0xFF && data[data.index(after: data.startIndex)] == 0xFE)
+            || (data[data.startIndex] == 0xFE && data[data.index(after: data.startIndex)] == 0xFF)
+    }
+
+    private func inferredUTF16Encoding(_ data: Data) -> String.Encoding? {
+        let sample = Array(data.prefix(64))
+        guard sample.count >= 4 else { return nil }
+
+        var evenNulls = 0
+        var oddNulls = 0
+
+        for (index, byte) in sample.enumerated() where byte == 0 {
+            if index.isMultiple(of: 2) {
+                evenNulls += 1
+            } else {
+                oddNulls += 1
+            }
+        }
+
+        let pairs = sample.count / 2
+        let threshold = max(2, pairs / 3)
+
+        if oddNulls >= threshold, evenNulls <= 1 {
+            return .utf16LittleEndian
+        }
+        if evenNulls >= threshold, oddNulls <= 1 {
+            return .utf16BigEndian
+        }
+
+        return nil
     }
 
     private func safeLookupPath(_ path: String) -> String {

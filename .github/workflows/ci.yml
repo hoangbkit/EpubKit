@@ -49,6 +49,29 @@ jobs:
       - name: Run tests
         run: swift test
 
+      - name: Verify Apple Silicon runner
+        run: |
+          echo "Runner architecture: $(uname -m)"
+          test "$(uname -m)" = "arm64"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate demo Xcode project
+        working-directory: Demo
+        run: xcodegen generate
+
+      - name: Build demo app on Apple Silicon
+        run: |
+          xcodebuild \
+            -project Demo/EpubKitDemo.xcodeproj \
+            -scheme EpubKitDemo \
+            -configuration Debug \
+            -destination 'platform=macOS,arch=arm64' \
+            -derivedDataPath DerivedData/EpubKitDemo \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
   notify:
     if: always()
     needs: test

@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleIdentifier</key>
-    <string>dev.byby.EpubKitDemo</string>
+    <string>com.hoangbkit.epubkit.demo</string>
     <key>CFBundleName</key>
     <string>EpubKitDemo</string>
     <key>CFBundleExecutable</key>

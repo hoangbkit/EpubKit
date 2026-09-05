@@ -3,20 +3,57 @@ import Foundation
 public struct EPUBDocument: Sendable, Equatable {
     public var metadata: EPUBMetadata
     public var chapters: [EPUBChapter]
+    public var cover: EPUBCover?
+    public var tableOfContents: [EPUBTOCItem]
     public var diagnostics: [EPUBDiagnostic]
 
     public init(
         metadata: EPUBMetadata = EPUBMetadata(),
         chapters: [EPUBChapter] = [],
+        cover: EPUBCover? = nil,
+        tableOfContents: [EPUBTOCItem] = [],
         diagnostics: [EPUBDiagnostic] = []
     ) {
         self.metadata = metadata
         self.chapters = chapters
+        self.cover = cover
+        self.tableOfContents = tableOfContents
         self.diagnostics = diagnostics
     }
 
     public var plainText: String {
         chapters.map(\.text).joined(separator: "\n\n")
+    }
+}
+
+public struct EPUBCover: Sendable, Equatable {
+    public var data: Data
+    public var mediaType: String
+    public var href: String
+
+    public init(data: Data, mediaType: String, href: String) {
+        self.data = data
+        self.mediaType = mediaType
+        self.href = href
+    }
+}
+
+public struct EPUBTOCItem: Identifiable, Sendable, Equatable {
+    public var id: String
+    public var title: String
+    public var href: String?
+    public var children: [EPUBTOCItem]
+
+    public init(
+        id: String,
+        title: String,
+        href: String? = nil,
+        children: [EPUBTOCItem] = []
+    ) {
+        self.id = id
+        self.title = title
+        self.href = href
+        self.children = children
     }
 }
 
