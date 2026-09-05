@@ -88,8 +88,10 @@ Initial production release.
 - Support macOS 13 and later.
 - Support iOS 16 and later.
 - Include a macOS SwiftUI demo app showing EPUB import, security-scoped file access, async parsing, progress, metadata, diagnostics, chapter browsing, text preview, and copying extracted text.
+- Generate the demo app's Xcode project with XcodeGen from `Demo/EpubKitDemo/project.yml`; the generated `.xcodeproj` is not committed.
 - Include production-oriented generated EPUB fixtures and regression coverage for EPUB 2/3 navigation, covers, malformed input, archive limits, path safety, encodings, metadata, parser options, async parsing, and cancellation.
 - Run Swift package tests in GitHub Actions for pushes to `master` and pull requests targeting `master`.
+- In CI, verify an Apple Silicon (`arm64`) macOS runner, generate the demo project with XcodeGen, and build the demo with `xcodebuild`.
 
 ### Scope
 
