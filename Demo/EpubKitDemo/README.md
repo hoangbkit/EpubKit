@@ -2,14 +2,47 @@
 
 A small macOS SwiftUI demo app for `EpubKit`.
 
-## Run
+The Xcode project is generated with [XcodeGen](https://github.com/yonaskolb/XcodeGen) from `project.yml`. The generated `EpubKitDemo.xcodeproj` is intentionally not committed.
 
-1. Open `Demo/EpubKitDemo/EpubKitDemo.xcodeproj` in Xcode.
-2. Select the `EpubKitDemo` scheme.
-3. Build and run.
-4. Open or drag an `.epub` file.
+## Requirements
 
-The project uses the package at `../..` as a local Swift Package dependency.
+- macOS 13+
+- Xcode 16+
+- XcodeGen 2.38+
+
+Install XcodeGen with Homebrew if needed:
+
+```sh
+brew install xcodegen
+```
+
+## Generate and run
+
+From this directory:
+
+```sh
+xcodegen generate
+open EpubKitDemo.xcodeproj
+```
+
+Then select the `EpubKitDemo` scheme, build and run, and open or drag an `.epub` file.
+
+The generated project uses the package at `../..` as a local Swift Package dependency.
+
+## Command-line build
+
+```sh
+xcodegen generate
+xcodebuild \
+  -project EpubKitDemo.xcodeproj \
+  -scheme EpubKitDemo \
+  -configuration Debug \
+  -destination 'platform=macOS,arch=arm64' \
+  CODE_SIGNING_ALLOWED=NO \
+  build
+```
+
+GitHub Actions runs the same generation/build path on an Apple Silicon macOS runner after the Swift package tests.
 
 ## What it demonstrates
 
