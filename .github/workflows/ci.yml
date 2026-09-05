@@ -58,13 +58,13 @@ jobs:
         run: brew install xcodegen
 
       - name: Generate demo Xcode project
-        working-directory: Demo/EpubKitDemo
+        working-directory: Demo
         run: xcodegen generate
 
       - name: Build demo app on Apple Silicon
         run: |
           xcodebuild \
-            -project Demo/EpubKitDemo/EpubKitDemo.xcodeproj \
+            -project Demo/EpubKitDemo.xcodeproj \
             -scheme EpubKitDemo \
             -configuration Debug \
             -destination 'platform=macOS,arch=arm64' \
