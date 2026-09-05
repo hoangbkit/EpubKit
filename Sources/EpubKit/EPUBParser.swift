@@ -8,6 +8,8 @@ public struct EPUBParser: Sendable {
         options: EPUBParsingOptions = .default,
         onProgress: (@Sendable (EPUBParsingProgress) -> Void)? = nil
     ) throws -> EPUBDocument {
+        try throwIfCancelled()
+
         let reader = try ArchiveDataReader(fileURL: fileURL, options: options)
         var diagnostics: [EPUBDiagnostic] = []
 
@@ -56,7 +58,7 @@ public struct EPUBParser: Sendable {
         let totalSpineItems = opf.spine.count
 
         for (spineIndex, idref) in opf.spine.enumerated() {
-            try Task.checkCancellation()
+            try throwIfCancelled()
 
             guard let item = opf.manifest[idref] else {
                 diagnostics.append(
@@ -162,9 +164,25 @@ public struct EPUBParser: Sendable {
         priority: TaskPriority? = nil,
         onProgress: (@Sendable (EPUBParsingProgress) -> Void)? = nil
     ) async throws -> EPUBDocument {
-        try await Task.detached(priority: priority) {
+        try throwIfCancelled()
+
+        let task = Task.detached(priority: priority) {
             try self.parse(fileURL: fileURL, options: options, onProgress: onProgress)
-        }.value
+        }
+
+        return try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: {
+            task.cancel()
+        }
+    }
+
+    private func throwIfCancelled() throws {
+        do {
+            try Task.checkCancellation()
+        } catch {
+            throw EPUBParserError.cancelled
+        }
     }
 
     private func isReadableHTML(_ item: OPFManifestItem) -> Bool {
