@@ -15,6 +15,7 @@ struct OPFDocument: Sendable, Equatable {
     var manifest: [String: OPFManifestItem]
     var spine: [String]
     var tocID: String?
+    var coverItemID: String?
 }
 
 final class OPFParser: NSObject, XMLParserDelegate {
@@ -22,12 +23,22 @@ final class OPFParser: NSObject, XMLParserDelegate {
     private var manifest: [String: OPFManifestItem] = [:]
     private var spine: [String] = []
     private var tocID: String?
+    private var coverItemID: String?
 
     private var elementStack: [String] = []
     private var currentText = ""
     private var currentMetaProperty: String?
 
     func parse(_ xml: String, path: String) throws -> OPFDocument {
+        metadata = EPUBMetadata()
+        manifest = [:]
+        spine = []
+        tocID = nil
+        coverItemID = nil
+        elementStack = []
+        currentText = ""
+        currentMetaProperty = nil
+
         guard let data = xml.data(using: .utf8) else {
             throw EPUBParserError.invalidPackageDocument(path)
         }
@@ -44,7 +55,13 @@ final class OPFParser: NSObject, XMLParserDelegate {
             throw EPUBParserError.missingSpine
         }
 
-        return OPFDocument(metadata: metadata, manifest: manifest, spine: spine, tocID: tocID)
+        return OPFDocument(
+            metadata: metadata,
+            manifest: manifest,
+            spine: spine,
+            tocID: tocID,
+            coverItemID: coverItemID
+        )
     }
 
     func parser(
@@ -76,6 +93,10 @@ final class OPFParser: NSObject, XMLParserDelegate {
 
         case "meta":
             currentMetaProperty = attributeDict["property"]
+            if attributeDict["name"]?.caseInsensitiveCompare("cover") == .orderedSame,
+               let content = attributeDict["content"]?.epub_trimmedOrNil {
+                coverItemID = content
+            }
 
         default:
             break
