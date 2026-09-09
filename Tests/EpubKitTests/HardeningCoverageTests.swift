@@ -1,6 +1,5 @@
 import Foundation
 import XCTest
-import ZIPFoundation
 @testable import EpubKit
 
 final class HardeningCoverageTests: XCTestCase {
@@ -27,6 +26,37 @@ final class HardeningCoverageTests: XCTestCase {
         ])
 
         assertParserError(.missingPackageDocument("OEBPS/missing.opf"), parsing: url)
+    }
+
+    func testFirstRootFileWinsWhenContainerListsSeveral() throws {
+        let container = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+          <rootfiles>
+            <rootfile full-path="OEBPS/first.opf" media-type="application/oebps-package+xml"/>
+            <rootfile full-path="OEBPS/second.opf" media-type="application/oebps-package+xml"/>
+          </rootfiles>
+        </container>
+        """
+        let firstOPF = minimalOPF(manifest: """
+            <item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/>
+        """, spine: "<itemref idref=\"chapter\"/>")
+        let secondOPF = minimalOPF(manifest: """
+            <item id="other" href="other.xhtml" media-type="application/xhtml+xml"/>
+        """, spine: "<itemref idref=\"other\"/>")
+        let url = try makeArchive(entries: [
+            "mimetype": Data("application/epub+zip".utf8),
+            "META-INF/container.xml": Data(container.utf8),
+            "OEBPS/first.opf": Data(firstOPF.utf8),
+            "OEBPS/second.opf": Data(secondOPF.utf8),
+            "OEBPS/chapter.xhtml": Data(chapterHTML(title: nil, body: "First rootfile content.").utf8),
+            "OEBPS/other.xhtml": Data(chapterHTML(title: nil, body: "Second rootfile content.").utf8)
+        ])
+
+        let document = try EPUBParser().parse(fileURL: url)
+
+        XCTAssertEqual(document.chapters.count, 1)
+        XCTAssertEqual(document.chapters.first?.href, "OEBPS/chapter.xhtml")
     }
 
     func testInvalidPackageDocumentThrows() throws {
@@ -129,6 +159,35 @@ final class HardeningCoverageTests: XCTestCase {
 
         XCTAssertEqual(try reader.readString("utf16.txt"), "Hello UTF-16")
         XCTAssertEqual(try reader.readString("latin1.txt"), "café")
+    }
+
+    func testBOMLessUTF16TextDecoding() throws {
+        // "Hello" as UTF-16 little-endian without a BOM: the null-byte
+        // heuristic in ArchiveDataReader must pick little-endian here.
+        let utf16LE = Data([0x48, 0x00, 0x65, 0x00, 0x6C, 0x00, 0x6C, 0x00, 0x6F, 0x00])
+        let url = try makeArchive(entries: ["bomless.txt": utf16LE])
+        let reader = try ArchiveDataReader(fileURL: url, options: .default)
+
+        XCTAssertEqual(try reader.readString("bomless.txt"), "Hello")
+    }
+
+    func testCorruptArchiveThrowsUnreadableArchive() throws {
+        let url = try makeArchive(entries: ["note.txt": Data("not a zip".utf8)])
+        // Overwrite the file so Archive(url:accessMode:.read) fails on its header.
+        try Data(repeating: 0x00, count: 512).write(to: url)
+
+        XCTAssertThrowsError(try EPUBParser().parse(fileURL: url)) { error in
+            XCTAssertEqual(error as? EPUBParserError, .unreadableArchive(url))
+        }
+    }
+
+    func testMissingFileThrowsFileDoesNotExist() {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("missing-\(UUID().uuidString).epub")
+
+        XCTAssertThrowsError(try EPUBParser().parse(fileURL: url)) { error in
+            XCTAssertEqual(error as? EPUBParserError, .fileDoesNotExist(url))
+        }
     }
 
     func testDropEmptyChaptersFalsePreservesChapter() throws {
@@ -261,18 +320,35 @@ final class HardeningCoverageTests: XCTestCase {
     }
 
     func testParseAsyncCancellationThrowsParserCancelled() async throws {
-        let opf = minimalOPF(
-            manifest: "<item id=\"chapter\" href=\"chapter.xhtml\" media-type=\"application/xhtml+xml\"/>",
-            spine: "<itemref idref=\"chapter\"/>"
-        )
-        let url = try makeEPUB(opf: opf, entries: [
-            "OEBPS/chapter.xhtml": Data("<html><body><p>Cancellation.</p></body></html>".utf8)
-        ])
-
-        let task = Task {
-            try await EPUBParser().parseAsync(fileURL: url)
+        // Build a book with enough spine items that the parse is still running
+        // when the cancellation lands; a one-chapter book can finish before
+        // cancellation is observed and the test would flake.
+        let manifest = (0..<200).map { index in
+            "<item id=\"c\(index)\" href=\"c\(index).xhtml\" media-type=\"application/xhtml+xml\"/>"
+        }.joined()
+        let spine = (0..<200).map { "<itemref idref=\"c\($0)\"/>" }.joined()
+        let entries = (0..<200).reduce(into: [:]) { result, index in
+            result["OEBPS/c\(index).xhtml"] = Data(chapterHTML(title: nil, body: "Chapter \(index) text.").utf8)
         }
-        task.cancel()
+        let url = try makeEPUB(opf: minimalOPF(manifest: manifest, spine: spine), entries: entries)
+
+        // The onProgress callback runs synchronously inside the detached
+        // parsing task, so a captured cancellation trigger fired from the
+        // first progress callback is guaranteed to be seen at the next spine
+        // item's checkCancellation — no race with task completion.
+        let cancellable = CancelTaskHandle()
+        let task = Task {
+            try await EPUBParser().parseAsync(
+                fileURL: url,
+                options: .default,
+                onProgress: { progress in
+                    if progress.completedSpineItems >= 1 {
+                        cancellable.cancel()
+                    }
+                }
+            )
+        }
+        cancellable.target = task
 
         do {
             _ = try await task.value
@@ -299,67 +375,5 @@ final class HardeningCoverageTests: XCTestCase {
         } catch {
             XCTFail("Expected EPUBParserError, got \(error)", file: file, line: line)
         }
-    }
-
-    private func makeEPUB(
-        opf: String,
-        entries: [String: Data] = [:],
-        encryptionXML: String? = nil
-    ) throws -> URL {
-        var allEntries: [String: Data] = [
-            "mimetype": Data("application/epub+zip".utf8),
-            "META-INF/container.xml": Data(containerXML(packagePath: "OEBPS/content.opf").utf8),
-            "OEBPS/content.opf": Data(opf.utf8)
-        ]
-        entries.forEach { allEntries[$0.key] = $0.value }
-        if let encryptionXML {
-            allEntries["META-INF/encryption.xml"] = Data(encryptionXML.utf8)
-        }
-        return try makeArchive(entries: allEntries)
-    }
-
-    private func makeArchive(entries: [String: Data]) throws -> URL {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString)
-            .appendingPathExtension("epub")
-        let archive = try Archive(url: url, accessMode: .create)
-
-        for path in entries.keys.sorted() {
-            let data = try XCTUnwrap(entries[path])
-            try archive.addEntry(
-                with: path,
-                type: .file,
-                uncompressedSize: Int64(data.count),
-                provider: { position, size in
-                    let start = Int(position)
-                    return data.subdata(in: start..<(start + size))
-                }
-            )
-        }
-
-        addTeardownBlock {
-            try? FileManager.default.removeItem(at: url)
-        }
-        return url
-    }
-
-    private func containerXML(packagePath: String) -> String {
-        """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
-          <rootfiles><rootfile full-path="\(packagePath)" media-type="application/oebps-package+xml"/></rootfiles>
-        </container>
-        """
-    }
-
-    private func minimalOPF(manifest: String, spine: String) -> String {
-        """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <package xmlns="http://www.idpf.org/2007/opf" version="3.0">
-          <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Hardening Test</dc:title></metadata>
-          <manifest>\(manifest)</manifest>
-          <spine>\(spine)</spine>
-        </package>
-        """
     }
 }

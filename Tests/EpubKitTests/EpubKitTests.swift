@@ -31,12 +31,31 @@ final class EpubKitTests: XCTestCase {
 
     func testProgressCallbackCompletes() throws {
         let url = try XCTUnwrap(Bundle.module.url(forResource: "minimal", withExtension: "epub", subdirectory: "Fixtures"))
-        var progressValues: [Double] = []
+        let progressValues = ProgressValueCollector()
 
         _ = try EPUBParser().parse(fileURL: url) { progress in
             progressValues.append(progress.fractionCompleted)
         }
 
-        XCTAssertEqual(progressValues.last, 1.0)
+        XCTAssertEqual(progressValues.values.last, 1.0)
+    }
+}
+
+/// Mutable capture in a @Sendable closure is a Swift 6 error; a small locked
+/// box keeps the collector safe.
+final class ProgressValueCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [Double] = []
+
+    var values: [Double] {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+
+    func append(_ value: Double) {
+        lock.lock()
+        defer { lock.unlock() }
+        storage.append(value)
     }
 }

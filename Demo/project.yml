@@ -3,7 +3,7 @@ name: EpubKitDemo
 options:
   minimumXcodeGenVersion: 2.38.0
   deploymentTarget:
-    macOS: "13.0"
+    macOS: "15.0"
 
 packages:
   EpubKit:

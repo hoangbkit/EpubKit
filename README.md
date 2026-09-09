@@ -1,6 +1,6 @@
 # EpubKit
 
-A focused Swift Package for extracting clean, structured, TTS-ready readable content from `.epub` files on macOS and iOS.
+A focused Swift Package for extracting clean, structured, TTS-ready readable content from `.epub` files on macOS.
 
 EpubKit is **not an EPUB renderer**. It is an ingestion layer for apps that need metadata, cover artwork, a structured table of contents, spine-ordered chapters, readable text, diagnostics, and safe archive handling.
 
@@ -21,8 +21,7 @@ EPUB archive
 ## Requirements
 
 - Swift 5.9+
-- macOS 13+
-- iOS 16+
+- macOS 15+
 
 ## Features
 

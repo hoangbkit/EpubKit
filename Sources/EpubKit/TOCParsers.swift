@@ -33,21 +33,7 @@ enum NavDocumentParser {
             return EPUBTOC()
         }
 
-        let navSelectors = [
-            "nav[epub\\:type~='toc']",
-            "nav[type~='toc']",
-            "nav"
-        ]
-
-        var navElement: Element?
-        for selector in navSelectors {
-            if let elements = try? document.select(selector), let first = elements.array().first {
-                navElement = first
-                break
-            }
-        }
-
-        guard let navElement else {
+        guard let navElement = tocNav(in: document) else {
             return EPUBTOC()
         }
 
@@ -59,6 +45,25 @@ enum NavDocumentParser {
         }
 
         return EPUBTOC(items: parseList(rootList, basePath: basePath, idPrefix: "nav"))
+    }
+
+    /// Selects the toc nav, preferring an element whose epub:type (or plain
+    /// type attribute) exactly equals "toc". Landmarks and other navs are
+    /// skipped when a toc-typed nav exists; a bare `<nav>` is the final
+    /// fallback for EPUBs that omit the attribute entirely. Note the exact
+    /// `=` match: SwiftSoup's `~=` treats the value as a regular expression
+    /// and its attribute-key parsing needs the plain colon spelling.
+    private static func tocNav(in document: Document) -> Element? {
+        for selector in [
+            "nav[epub:type='toc']",
+            "nav[type='toc']",
+            "nav"
+        ] {
+            if let elements = try? document.select(selector), let first = elements.array().first {
+                return first
+            }
+        }
+        return nil
     }
 
     private static func parseList(_ list: Element, basePath: String, idPrefix: String) -> [EPUBTOCItem] {

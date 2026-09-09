@@ -2,6 +2,16 @@
 
 All notable changes to EpubKit are documented in this file.
 
+## [1.0.1] - 2026-09-09
+
+Bug fixes for real-world EPUB compatibility.
+
+### Fixed
+
+- EPUB 3 navigation selection now honors `epub:type="toc"`. The previous selector never matched, so books with a landmarks nav had their landmarks parsed as the table of contents, producing wrong TOC entries and chapter titles.
+- BOM-less UTF-16 chapter resources are now detected via the null-byte heuristic instead of being decoded as UTF-8 mojibake.
+- `META-INF/container.xml` and OPF path lookups now apply the same percent-decoding fallback as chapter reads, so books whose package document is stored decoded in the zip no longer fail with a misleading `missingPackageDocument` error.
+
 ## [1.0.0] - 2026-09-05
 
 Initial production release.

@@ -18,13 +18,23 @@ final class ArchiveDataReader {
     }
 
     func contains(_ path: String) -> Bool {
-        archive[safeLookupPath(path)] != nil
+        let trimmed = safeLookupPath(path)
+        if archive[trimmed] != nil {
+            return true
+        }
+        // Mirror readData's fallback so both lookups agree: an OPF referenced
+        // as "content 1.opf" may be stored in the zip percent-encoded.
+        return archive[trimmed.removingPercentEncoding ?? trimmed] != nil
     }
 
     func readString(_ path: String) throws -> String {
         let data = try readData(path)
 
-        if let string = String(data: data, encoding: .utf8) {
+        // NUL bytes are illegal in XML and never occur in valid UTF-8 text
+        // documents, but they do occur in BOM-less UTF-16 — which also
+        // "decodes" as UTF-8. Rejecting NUL-containing UTF-8 sends such data
+        // to the UTF-16 detection below instead of decoding it as mojibake.
+        if let string = String(data: data, encoding: .utf8), !string.contains("\u{0}") {
             return string
         }
 
