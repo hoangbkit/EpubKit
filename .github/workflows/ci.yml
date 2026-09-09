@@ -64,7 +64,7 @@ jobs:
             -project Demo/EpubKitDemo.xcodeproj \
             -scheme EpubKitDemo \
             -configuration Debug \
-            -destination 'platform=macOS,arch=$(uname -m)' \
+            -destination 'platform=macOS' \
             -derivedDataPath DerivedData/EpubKitDemo \
             CODE_SIGNING_ALLOWED=NO \
             build
