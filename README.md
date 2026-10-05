@@ -20,7 +20,7 @@ EPUB archive
 
 ## Requirements
 
-- Swift 5.9+
+- Swift 6.0+
 - macOS 15+
 - iOS 15+
 
@@ -129,7 +129,7 @@ import EpubKit
 
 .fileImporter(
     isPresented: $isImporting,
-    allowedContentTypes: [UTType(filenameExtension: "epub")!]
+    allowedContentTypes: [UTType(filenameExtension: "epub") ?? .data]
 ) { result in
     guard case .success(let url) = result else { return }
 
@@ -329,7 +329,12 @@ EpubKit should remain the ingestion layer. The host application should own:
 
 ## Demo app
 
-A macOS SwiftUI demo is included in `Demo/`. The demo remains macOS-only; iOS support is provided by the EpubKit package itself.
+A shared SwiftUI demo is included in `Demo/` with two XcodeGen targets:
+
+- `EpubKitDemo` — macOS 15+
+- `EpubKitDemo-iOS` — iOS 16+
+
+The package itself supports iOS 15+. The iOS Demo starts at iOS 16 because its compact shared UI uses `NavigationSplitView`.
 
 The demo project is generated with XcodeGen from `Demo/project.yml`; the generated `Demo/EpubKitDemo.xcodeproj` is intentionally not committed.
 
@@ -338,13 +343,14 @@ Generate and open it with:
 ```sh
 cd Demo
 brew install xcodegen # once, if needed
-xcodegen generate
+xcodegen generate --spec project.yml
 open EpubKitDemo.xcodeproj
 ```
 
 It demonstrates:
 
-- `NSOpenPanel` EPUB import
+- macOS `NSOpenPanel` import and drag-and-drop
+- iOS `fileImporter`
 - security-scoped file access
 - async parsing and progress
 - metadata and diagnostics
@@ -353,6 +359,8 @@ It demonstrates:
 - copying selected chapter text or all extracted text
 
 The generated project references the root repository as a local Swift Package dependency at `..`.
+
+The manual **Demo Release** workflow follows the same mycli artifact model used by Spokio, AppFoundation, and MacAppFoundation. It lets you choose `macOS`, `iOS`, or `both`, plus `Debug`, `Release`, or `both`. iOS builds are published as unsigned `.xcarchive.zip` files; macOS builds are published as unsigned universal `.app.zip` files.
 
 ## Testing
 
@@ -374,7 +382,7 @@ The package includes generated and fixture-based EPUB tests covering core parsin
 - parser options
 - async parsing and cancellation
 
-GitHub Actions workflows are manually triggered. **Fast CI** validates the package on macOS 26, runs package tests, compiles EpubKit for a generic iOS Simulator, and builds the macOS demo. **Full CI** preserves macOS 15 Intel, macOS 15 Apple Silicon, and macOS 26 Apple Silicon validation; the macOS 26 job also compiles EpubKit for iOS Simulator. Package Release and Demo Release are separate manual workflows.
+GitHub Actions workflows are manually triggered. **Fast CI** validates the package on macOS 26, runs package tests, compiles EpubKit for a generic iOS Simulator, and builds both the macOS and iOS Demo targets. **Full CI** preserves macOS 15 Intel, macOS 15 Apple Silicon, and macOS 26 Apple Silicon validation; the macOS 26 job additionally compiles EpubKit for iOS Simulator and builds the iOS Demo. Package Release and Demo Release are separate manual workflows.
 
 ## Changelog
 
