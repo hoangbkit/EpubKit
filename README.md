@@ -1,6 +1,6 @@
 # EpubKit
 
-A focused Swift Package for extracting clean, structured, TTS-ready readable content from `.epub` files on macOS.
+A focused Swift Package for extracting clean, structured, TTS-ready readable content from `.epub` files on macOS and iOS.
 
 EpubKit is **not an EPUB renderer**. It is an ingestion layer for apps that need metadata, cover artwork, a structured table of contents, spine-ordered chapters, readable text, diagnostics, and safe archive handling.
 
@@ -21,7 +21,7 @@ EPUB archive
 ## Requirements
 
 - Swift 5.9+
-- macOS 15+
+- macOS 15+\n- iOS 15+
 
 ## Features
 
@@ -303,7 +303,7 @@ A macOS SwiftUI demo is included at:
 Demo/EpubKitDemo
 ```
 
-The demo project is generated with XcodeGen from `Demo/EpubKitDemo/project.yml`; the generated `EpubKitDemo.xcodeproj` is intentionally not committed.
+The demo project is generated with XcodeGen from `Demo/project.yml`; the generated `Demo/EpubKitDemo.xcodeproj` is intentionally not committed.
 
 Generate and open it with:
 
@@ -324,7 +324,7 @@ It demonstrates:
 - extracted-text preview
 - copying selected chapter text or all extracted text
 
-The generated project references the root repository as a local Swift Package dependency at `../..`.
+The generated project references the root repository as a local Swift Package dependency at `..`.
 
 ## Testing
 
@@ -346,7 +346,7 @@ The package includes generated and fixture-based EPUB tests covering core parsin
 - parser options
 - async parsing and cancellation
 
-GitHub Actions runs `swift test` for pushes to `master` and pull requests targeting `master`. On the Apple Silicon macOS runner, CI also verifies `arm64`, generates the demo project with XcodeGen, and builds the `EpubKitDemo` scheme with `xcodebuild`.
+GitHub Actions workflows are manually triggered. **Fast CI** validates the package on macOS 26, runs package tests, compiles EpubKit for a generic iOS Simulator, and builds the macOS demo. **Full CI** preserves macOS 15 Intel, macOS 15 Apple Silicon, and macOS 26 Apple Silicon validation; the macOS 26 job also compiles EpubKit for iOS Simulator. Package Release and Demo Release are separate manual workflows.
 
 ## Changelog
 
