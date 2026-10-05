@@ -45,6 +45,15 @@ final class DemoViewModel: ObservableObject {
     }
     #endif
 
+    func loadSampleEPUB() async {
+        guard let url = Bundle.main.url(forResource: "minimal", withExtension: "epub") else {
+            errorMessage = "Bundled sample EPUB is missing."
+            return
+        }
+
+        await parse(url: url)
+    }
+
     func parse(url: URL) async {
         isParsing = true
         progress = 0
