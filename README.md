@@ -21,7 +21,8 @@ EPUB archive
 ## Requirements
 
 - Swift 5.9+
-- macOS 15+\n- iOS 15+
+- macOS 15+
+- iOS 15+
 
 ## Features
 
