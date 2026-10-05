@@ -7,9 +7,9 @@ The demo is intentionally kept directly under `Demo/` so tools such as `mycli` c
 ## Targets
 
 - `EpubKitDemo` — macOS 15+, bundle identifier `com.hoangbkit.epubkit.demo`
-- `EpubKitDemo-iOS` — iOS 16+, bundle identifier `com.hoangbkit.epubkit.demo.ios`
+- `EpubKitDemo-iOS` — iOS 26+, bundle identifier `com.hoangbkit.epubkit.demo.ios`
 
-The package itself supports iOS 15+. The iOS Demo uses iOS 16+ because the shared interface uses `NavigationSplitView`.
+Both the package and iOS Demo require iOS 26+.
 
 ## Generate and run
 
