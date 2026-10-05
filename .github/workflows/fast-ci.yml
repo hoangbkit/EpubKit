@@ -1,0 +1,55 @@
+name: Fast CI
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fast-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: macos-26
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Select Xcode 26.3
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
+
+      - name: Show toolchain
+        run: |
+          uname -m
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Validate package manifest
+        run: swift package dump-package >/dev/null
+
+      - name: Run package tests
+        run: swift test
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Demo project
+        working-directory: Demo
+        run: xcodegen generate
+
+      - name: Build Demo app
+        run: |
+          xcodebuild \
+            -project Demo/EpubKitDemo.xcodeproj \
+            -scheme EpubKitDemo \
+            -configuration Debug \
+            -destination "platform=macOS,arch=arm64" \
+            -derivedDataPath DerivedData/EpubKitDemo \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
