@@ -61,6 +61,10 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             build
 
+          test -f "$PWD/.derivedData-iOS/Build/Products/Debug-iphonesimulator/EpubKitDemo.app/minimal.epub"
+
+          test -f "$PWD/.derivedData-macOS/Build/Products/Debug/EpubKitDemo.app/Contents/Resources/minimal.epub"
+
       - name: Build iOS Demo
         working-directory: Demo
         run: |
