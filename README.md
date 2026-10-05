@@ -383,7 +383,7 @@ The package includes generated and fixture-based EPUB tests covering core parsin
 - parser options
 - async parsing and cancellation
 
-GitHub Actions workflows are manually triggered. **Fast CI** validates the package on macOS 26, runs package tests, compiles EpubKit for a generic iOS Simulator, and builds both the macOS and iOS Demo targets. **Full CI** preserves macOS 15 Intel, macOS 15 Apple Silicon, and macOS 26 Apple Silicon validation; the macOS 26 job additionally compiles EpubKit for iOS Simulator and builds the iOS Demo. Package Release and Demo Release are separate manual workflows.
+GitHub Actions workflows are manually triggered. **Fast CI** validates the package on macOS 26, runs package tests, and builds both the macOS and iOS Demo targets; building the iOS Demo compiles the local EpubKit package for a generic iOS Simulator. **Full CI** preserves macOS 15 Intel, macOS 15 Apple Silicon, and macOS 26 Apple Silicon validation; the macOS 26 job additionally builds the iOS Demo, providing the iOS package integration compile check. Package Release and Demo Release are separate manual workflows.
 
 ## Changelog
 
