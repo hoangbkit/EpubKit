@@ -349,6 +349,7 @@ open EpubKitDemo.xcodeproj
 
 It demonstrates:
 
+- a bundled sample EPUB for immediate parsing from the empty state
 - macOS `NSOpenPanel` import and drag-and-drop
 - iOS `fileImporter`
 - security-scoped file access
