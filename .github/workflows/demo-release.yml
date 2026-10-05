@@ -2,6 +2,25 @@ name: Demo Release
 
 on:
   workflow_dispatch:
+    inputs:
+      platform:
+        description: "Demo platform"
+        required: true
+        default: both
+        type: choice
+        options:
+          - macOS
+          - iOS
+          - both
+      configuration:
+        description: "Build configuration"
+        required: true
+        default: Release
+        type: choice
+        options:
+          - Debug
+          - Release
+          - both
 
 permissions:
   contents: write
@@ -39,32 +58,41 @@ jobs:
         working-directory: Demo
         run: xcodegen generate
 
-      - name: Set build release tag
-        id: release
+      - name: Build and publish selected Demo releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SELECTED_PLATFORM: ${{ inputs.platform }}
+          SELECTED_CONFIGURATION: ${{ inputs.configuration }}
         shell: bash
         run: |
-          tag="mycli-build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "Build release: $tag"
+          set -euo pipefail
 
-      - name: Build unsigned universal macOS Demo
-        shell: bash
-        run: |
           SOURCE_PACKAGES="$RUNNER_TEMP/EpubKit-SourcePackages"
-          ARTIFACTS="$GITHUB_WORKSPACE/artifacts"
-          mkdir -p "$ARTIFACTS"
+          BASE_TAG="mycli-build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          RELEASE_SHA="$(git rev-parse HEAD)"
 
-          for CONFIGURATION in Debug Release; do
-            DERIVED="$RUNNER_TEMP/EpubKit-macOS-$CONFIGURATION"
+          if [[ "$SELECTED_CONFIGURATION" == "both" ]]; then
+            CONFIGURATIONS=("Debug" "Release")
+          else
+            CONFIGURATIONS=("$SELECTED_CONFIGURATION")
+          fi
+
+          build_macos() {
+            local configuration="$1"
+            local tag="$2"
+            local lower
+            lower="$(echo "$configuration" | tr '[:upper:]' '[:lower:]')"
+            local derived="$RUNNER_TEMP/EpubKit-macOS-$configuration"
+            local artifacts="$GITHUB_WORKSPACE/artifacts-$lower"
+            mkdir -p "$artifacts"
 
             xcodebuild \
               -project Demo/EpubKitDemo.xcodeproj \
               -scheme EpubKitDemo \
-              -configuration "$CONFIGURATION" \
+              -configuration "$configuration" \
               -sdk macosx \
               -destination "platform=macOS" \
-              -derivedDataPath "$DERIVED" \
+              -derivedDataPath "$derived" \
               -clonedSourcePackagesDirPath "$SOURCE_PACKAGES" \
               ARCHS="arm64 x86_64" \
               ONLY_ACTIVE_ARCH=NO \
@@ -72,48 +100,77 @@ jobs:
               CODE_SIGNING_REQUIRED=NO \
               build
 
-            APP="$DERIVED/Build/Products/$CONFIGURATION/EpubKitDemo.app"
-            test -d "$APP"
+            local app="$derived/Build/Products/$configuration/EpubKitDemo.app"
+            test -d "$app"
 
-            EXECUTABLE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")"
-            ARCHS_FOUND="$(lipo -archs "$APP/Contents/MacOS/$EXECUTABLE")"
-            echo "$CONFIGURATION macOS architectures: $ARCHS_FOUND"
-            [[ " $ARCHS_FOUND " == *" arm64 "* ]] || { echo "error: arm64 slice missing" >&2; exit 1; }
-            [[ " $ARCHS_FOUND " == *" x86_64 "* ]] || { echo "error: x86_64 slice missing" >&2; exit 1; }
+            local executable
+            executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
+            local archs_found
+            archs_found="$(lipo -archs "$app/Contents/MacOS/$executable")"
+            [[ " $archs_found " == *" arm64 "* ]]
+            [[ " $archs_found " == *" x86_64 "* ]]
 
-            CONFIGURATION_LOWER="$(echo "$CONFIGURATION" | tr '[:upper:]' '[:lower:]')"
             ditto -c -k --sequesterRsrc --keepParent \
-              "$APP" \
-              "$ARTIFACTS/EpubKitDemo-macOS-universal-$CONFIGURATION_LOWER-unsigned-${{ steps.release.outputs.tag }}.zip"
+              "$app" \
+              "$artifacts/EpubKitDemo-macOS-universal-unsigned-$tag.zip"
+          }
 
-            rm -rf "$DERIVED"
-          done
+          build_ios() {
+            local configuration="$1"
+            local tag="$2"
+            local lower
+            lower="$(echo "$configuration" | tr '[:upper:]' '[:lower:]')"
+            local archive="$RUNNER_TEMP/EpubKit-iOS-$configuration.xcarchive"
+            local artifacts="$GITHUB_WORKSPACE/artifacts-$lower"
+            mkdir -p "$artifacts"
 
-      - name: Verify release archives
-        shell: bash
-        run: |
-          ls -lh artifacts
+            xcodebuild archive \
+              -project Demo/EpubKitDemo.xcodeproj \
+              -scheme EpubKitDemo-iOS \
+              -configuration "$configuration" \
+              -destination "generic/platform=iOS" \
+              -archivePath "$archive" \
+              -clonedSourcePackagesDirPath "$SOURCE_PACKAGES" \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO
 
-          for configuration in debug release; do
-            archive="artifacts/EpubKitDemo-macOS-universal-$configuration-unsigned-${{ steps.release.outputs.tag }}.zip"
-            test -f "$archive"
+            test -d "$archive"
+            ditto -c -k --sequesterRsrc --keepParent \
+              "$archive" \
+              "$artifacts/EpubKitDemo-iOS-unsigned-$tag.xcarchive.zip"
+          }
 
-            bytes="$(stat -f%z "$archive")"
-            if (( bytes >= 2147483648 )); then
-              echo "error: $archive is too large for a GitHub Release asset" >&2
-              exit 1
+          for configuration in "${CONFIGURATIONS[@]}"; do
+            lower="$(echo "$configuration" | tr '[:upper:]' '[:lower:]')"
+
+            if [[ "$SELECTED_CONFIGURATION" == "both" ]]; then
+              tag="$BASE_TAG-$lower"
+            else
+              tag="$BASE_TAG"
             fi
-          done
 
-      - name: Create GitHub prerelease
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
-          RELEASE_SHA: ${{ steps.release.outputs.release_sha }}
-        shell: bash
-        run: |
-          gh release create "$RELEASE_TAG" artifacts/*.zip \
-            --target "$RELEASE_SHA" \
-            --title "$RELEASE_TAG" \
-            --prerelease \
-            --generate-notes
+            rm -rf "artifacts-$lower"
+
+            if [[ "$SELECTED_PLATFORM" == "macOS" || "$SELECTED_PLATFORM" == "both" ]]; then
+              build_macos "$configuration" "$tag"
+            fi
+
+            if [[ "$SELECTED_PLATFORM" == "iOS" || "$SELECTED_PLATFORM" == "both" ]]; then
+              build_ios "$configuration" "$tag"
+            fi
+
+            for archive in "artifacts-$lower"/*; do
+              test -f "$archive"
+              bytes="$(stat -f%z "$archive")"
+              if (( bytes >= 2147483648 )); then
+                echo "error: $archive is too large for a GitHub Release asset" >&2
+                exit 1
+              fi
+            done
+
+            gh release create "$tag" "artifacts-$lower"/* \
+              --target "$RELEASE_SHA" \
+              --title "$tag" \
+              --prerelease \
+              --generate-notes
+          done
