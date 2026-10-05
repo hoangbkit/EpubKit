@@ -35,6 +35,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hoangbkit.epubkit.demo
         PRODUCT_NAME: EpubKitDemo
+        DEVELOPMENT_TEAM: J458WW3452
         INFOPLIST_FILE: Info.plist
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: EpubKitDemo.entitlements
