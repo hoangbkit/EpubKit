@@ -118,6 +118,7 @@ jobs:
               echo "error: unexpected iOS bundle identifier" >&2
               exit 1
             }
+            test -f "$IOS_APP/minimal.epub"
 
             CONFIGURATION_LOWER="$(echo "$CONFIGURATION" | tr '[:upper:]' '[:lower:]')"
             ditto -c -k --sequesterRsrc --keepParent \
@@ -178,6 +179,7 @@ jobs:
             echo "$CONFIGURATION macOS architectures: $MAC_ARCHS"
             [[ " $MAC_ARCHS " == *" arm64 "* ]] || { echo "error: arm64 slice missing" >&2; exit 1; }
             [[ " $MAC_ARCHS " == *" x86_64 "* ]] || { echo "error: x86_64 slice missing" >&2; exit 1; }
+            test -f "$MAC_APP/Contents/Resources/minimal.epub"
 
             CONFIGURATION_LOWER="$(echo "$CONFIGURATION" | tr '[:upper:]' '[:lower:]')"
             ditto -c -k --sequesterRsrc --keepParent \
