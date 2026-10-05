@@ -6,7 +6,7 @@ let package = Package(
     name: "EpubKit",
     platforms: [
         .macOS(.v15),
-        .iOS(.v15)
+        .iOS("26.0")
     ],
     products: [
         .library(
