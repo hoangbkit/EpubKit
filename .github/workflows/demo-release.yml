@@ -111,6 +111,13 @@ jobs:
               echo "error: expected exactly one iOS app in $CONFIGURATION archive, found $IOS_APP_COUNT" >&2
               exit 1
             fi
+            IOS_APP="$(find "$IOS_ARCHIVE/Products/Applications" -maxdepth 1 -type d -name '*.app' -print)"
+            IOS_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$IOS_APP/Info.plist")"
+            echo "$CONFIGURATION iOS bundle id: $IOS_BUNDLE_ID"
+            [[ "$IOS_BUNDLE_ID" == "com.hoangbkit.epubkit.demo.ios" ]] || {
+              echo "error: unexpected iOS bundle identifier" >&2
+              exit 1
+            }
 
             CONFIGURATION_LOWER="$(echo "$CONFIGURATION" | tr '[:upper:]' '[:lower:]')"
             ditto -c -k --sequesterRsrc --keepParent \
@@ -158,6 +165,13 @@ jobs:
 
             MAC_APP="$MAC_DERIVED/Build/Products/$CONFIGURATION/EpubKitDemo.app"
             test -d "$MAC_APP"
+
+            MAC_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$MAC_APP/Contents/Info.plist")"
+            echo "$CONFIGURATION macOS bundle id: $MAC_BUNDLE_ID"
+            [[ "$MAC_BUNDLE_ID" == "com.hoangbkit.epubkit.demo" ]] || {
+              echo "error: unexpected macOS bundle identifier" >&2
+              exit 1
+            }
 
             MAC_EXECUTABLE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$MAC_APP/Contents/Info.plist")"
             MAC_ARCHS="$(lipo -archs "$MAC_APP/Contents/MacOS/$MAC_EXECUTABLE")"
