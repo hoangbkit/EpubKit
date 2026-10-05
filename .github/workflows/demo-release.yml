@@ -1,0 +1,119 @@
+name: Demo Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mycli-demo-release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and release Demo
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout selected ref
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
+
+      - name: Select Xcode 26.3
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
+
+      - name: Show toolchain
+        run: |
+          sw_vers
+          uname -m
+          xcodebuild -version
+          swift --version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Demo project
+        working-directory: Demo
+        run: xcodegen generate
+
+      - name: Set build release tag
+        id: release
+        shell: bash
+        run: |
+          tag="mycli-build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "release_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "Build release: $tag"
+
+      - name: Build unsigned universal macOS Demo
+        shell: bash
+        run: |
+          SOURCE_PACKAGES="$RUNNER_TEMP/EpubKit-SourcePackages"
+          ARTIFACTS="$GITHUB_WORKSPACE/artifacts"
+          mkdir -p "$ARTIFACTS"
+
+          for CONFIGURATION in Debug Release; do
+            DERIVED="$RUNNER_TEMP/EpubKit-macOS-$CONFIGURATION"
+
+            xcodebuild \
+              -project Demo/EpubKitDemo.xcodeproj \
+              -scheme EpubKitDemo \
+              -configuration "$CONFIGURATION" \
+              -sdk macosx \
+              -destination "platform=macOS" \
+              -derivedDataPath "$DERIVED" \
+              -clonedSourcePackagesDirPath "$SOURCE_PACKAGES" \
+              ARCHS="arm64 x86_64" \
+              ONLY_ACTIVE_ARCH=NO \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              build
+
+            APP="$DERIVED/Build/Products/$CONFIGURATION/EpubKitDemo.app"
+            test -d "$APP"
+
+            EXECUTABLE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")"
+            ARCHS_FOUND="$(lipo -archs "$APP/Contents/MacOS/$EXECUTABLE")"
+            echo "$CONFIGURATION macOS architectures: $ARCHS_FOUND"
+            [[ " $ARCHS_FOUND " == *" arm64 "* ]] || { echo "error: arm64 slice missing" >&2; exit 1; }
+            [[ " $ARCHS_FOUND " == *" x86_64 "* ]] || { echo "error: x86_64 slice missing" >&2; exit 1; }
+
+            CONFIGURATION_LOWER="$(echo "$CONFIGURATION" | tr '[:upper:]' '[:lower:]')"
+            ditto -c -k --sequesterRsrc --keepParent \
+              "$APP" \
+              "$ARTIFACTS/EpubKitDemo-macOS-universal-$CONFIGURATION_LOWER-unsigned-${{ steps.release.outputs.tag }}.zip"
+
+            rm -rf "$DERIVED"
+          done
+
+      - name: Verify release archives
+        shell: bash
+        run: |
+          ls -lh artifacts
+
+          for configuration in debug release; do
+            archive="artifacts/EpubKitDemo-macOS-universal-$configuration-unsigned-${{ steps.release.outputs.tag }}.zip"
+            test -f "$archive"
+
+            bytes="$(stat -f%z "$archive")"
+            if (( bytes >= 2147483648 )); then
+              echo "error: $archive is too large for a GitHub Release asset" >&2
+              exit 1
+            fi
+          done
+
+      - name: Create GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_SHA: ${{ steps.release.outputs.release_sha }}
+        shell: bash
+        run: |
+          gh release create "$RELEASE_TAG" artifacts/*.zip \
+            --target "$RELEASE_SHA" \
+            --title "$RELEASE_TAG" \
+            --prerelease \
+            --generate-notes
