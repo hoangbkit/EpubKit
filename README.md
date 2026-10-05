@@ -22,7 +22,7 @@ EPUB archive
 
 - Swift 6.0+
 - macOS 15+
-- iOS 15+
+- iOS 26+
 
 ## Features
 
@@ -332,9 +332,9 @@ EpubKit should remain the ingestion layer. The host application should own:
 A shared SwiftUI demo is included in `Demo/` with two XcodeGen targets:
 
 - `EpubKitDemo` — macOS 15+
-- `EpubKitDemo-iOS` — iOS 16+
+- `EpubKitDemo-iOS` — iOS 26+
 
-The package itself supports iOS 15+. The iOS Demo starts at iOS 16 because its compact shared UI uses `NavigationSplitView`.
+Both the package and iOS Demo require iOS 26+.
 
 The demo project is generated with XcodeGen from `Demo/project.yml`; the generated `Demo/EpubKitDemo.xcodeproj` is intentionally not committed.
 
