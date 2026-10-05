@@ -60,16 +60,31 @@ jobs:
 
       - name: Generate Demo project
         working-directory: Demo
-        run: xcodegen generate
+        run: xcodegen generate --spec project.yml
 
-      - name: Build Demo app
+      - name: Build macOS Demo
+        working-directory: Demo
         run: |
           xcodebuild \
-            -project Demo/EpubKitDemo.xcodeproj \
+            -project EpubKitDemo.xcodeproj \
             -scheme EpubKitDemo \
             -configuration Debug \
             -destination "platform=macOS,arch=${{ matrix.arch }}" \
-            -derivedDataPath DerivedData/EpubKitDemo \
+            -derivedDataPath "$PWD/.derivedData-macOS" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
+      - name: Build iOS Demo
+        if: matrix.runner == 'macos-26'
+        working-directory: Demo
+        run: |
+          xcodebuild \
+            -project EpubKitDemo.xcodeproj \
+            -scheme EpubKitDemo-iOS \
+            -configuration Debug \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath "$PWD/.derivedData-iOS" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             build
