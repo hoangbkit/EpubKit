@@ -28,6 +28,8 @@ targets:
           - Info.plist
           - EpubKitDemo.entitlements
           - EpubKitDemo.xcodeproj
+      - path: ../Tests/EpubKitTests/Fixtures/minimal.epub
+        buildPhase: resources
     dependencies:
       - package: EpubKit
         product: EpubKit
@@ -59,6 +61,8 @@ targets:
           - Info.plist
           - EpubKitDemo.entitlements
           - EpubKitDemo.xcodeproj
+      - path: ../Tests/EpubKitTests/Fixtures/minimal.epub
+        buildPhase: resources
     dependencies:
       - package: EpubKit
         product: EpubKit
