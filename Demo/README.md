@@ -25,6 +25,8 @@ The project uses the package at `..` as a local Swift Package dependency.
 
 ## What it demonstrates
 
+- bundled `minimal.epub` sample with a one-click **Use Sample EPUB** action
+- **Pick EPUB File** for importing your own book
 - macOS `NSOpenPanel` import and drag-and-drop
 - iOS `fileImporter`
 - sandbox-safe security-scoped access
