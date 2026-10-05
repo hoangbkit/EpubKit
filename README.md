@@ -117,6 +117,37 @@ for chapter in document.chapters {
 
 `EPUBCover` intentionally exposes raw data rather than `NSImage` or `UIImage`, keeping the package independent of AppKit and UIKit.
 
+### iOS file import
+
+EpubKit accepts file URLs and intentionally leaves document picking and security-scoped access to the host app. Keep the security scope active until asynchronous parsing finishes:
+
+```swift
+import SwiftUI
+import UniformTypeIdentifiers
+import EpubKit
+
+.fileImporter(
+    isPresented: $isImporting,
+    allowedContentTypes: [UTType(filenameExtension: "epub")!]
+) { result in
+    guard case .success(let url) = result else { return }
+
+    Task {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer {
+            if accessing {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        let document = try await EPUBParser().parseAsync(fileURL: url)
+        // Store or use document in the host app.
+    }
+}
+```
+
+The host application remains responsible for bookmarks or other persistent file access. EpubKit does not retain security-scoped URLs.
+
 `EPUBTOCItem` preserves nested navigation through its `children` array. Chapter extraction still follows OPF spine order; the TOC is navigation metadata, not the source of reading order.
 
 ## Async parsing and progress
@@ -297,18 +328,14 @@ EpubKit should remain the ingestion layer. The host application should own:
 
 ## Demo app
 
-A macOS SwiftUI demo is included at:
-
-```text
-Demo/EpubKitDemo
-```
+A macOS SwiftUI demo is included in `Demo/`. The demo remains macOS-only; iOS support is provided by the EpubKit package itself.
 
 The demo project is generated with XcodeGen from `Demo/project.yml`; the generated `Demo/EpubKitDemo.xcodeproj` is intentionally not committed.
 
 Generate and open it with:
 
 ```sh
-cd Demo/EpubKitDemo
+cd Demo
 brew install xcodegen # once, if needed
 xcodegen generate
 open EpubKitDemo.xcodeproj
