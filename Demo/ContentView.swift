@@ -142,8 +142,17 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
-            Button("Open EPUB") { openEPUB() }
+            HStack(spacing: 10) {
+                Button("Use Sample EPUB") {
+                    Task { await model.loadSampleEPUB() }
+                }
                 .buttonStyle(.borderedProminent)
+
+                Button("Pick EPUB File") {
+                    openEPUB()
+                }
+                .buttonStyle(.bordered)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
