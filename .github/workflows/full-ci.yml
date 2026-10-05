@@ -48,6 +48,13 @@ jobs:
       - name: Run package tests
         run: swift test
 
+      - name: Build package for iOS Simulator
+        if: matrix.runner == 'macos-26'
+        run: |
+          xcodebuild build \
+            -scheme EpubKit-Package \
+            -destination "generic/platform=iOS Simulator"
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
