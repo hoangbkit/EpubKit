@@ -4,18 +4,21 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @StateObject private var model = DemoViewModel()
     @State private var isDropTargeted = false
+    @State private var isImporting = false
 
     var body: some View {
         NavigationSplitView {
             sidebar
+#if os(macOS)
                 .navigationSplitViewColumnWidth(min: 280, ideal: 340, max: 440)
+#endif
         } detail: {
             detail
         }
         .toolbar {
             ToolbarItemGroup {
                 Button {
-                    model.openEPUBPanel()
+                    openEPUB()
                 } label: {
                     Label("Open EPUB", systemImage: "book")
                 }
@@ -28,15 +31,23 @@ struct ContentView: View {
                 .disabled(model.document == nil)
             }
         }
+#if os(macOS)
         .overlay(dropOverlay)
         .onDrop(of: [UTType.fileURL.identifier], isTargeted: $isDropTargeted, perform: handleDrop(providers:))
+#endif
+        .fileImporter(
+            isPresented: $isImporting,
+            allowedContentTypes: [.epub],
+            allowsMultipleSelection: false
+        ) { result in
+            guard case .success(let urls) = result, let url = urls.first else { return }
+            Task { await model.parse(url: url) }
+        }
     }
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header
-                .padding(16)
-
+            header.padding(16)
             Divider()
 
             if let document = model.document {
@@ -47,7 +58,6 @@ struct ContentView: View {
                                 Text(chapter.title ?? "Chapter \(chapter.order + 1)")
                                     .font(.headline)
                                     .lineLimit(2)
-
                                 Text("\(chapter.characterCount.formatted()) characters")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -121,20 +131,15 @@ struct ContentView: View {
             Image(systemName: "book.closed")
                 .font(.system(size: 42))
                 .foregroundStyle(.secondary)
-
-            Text("Open or drag an EPUB file")
+            Text("Open an EPUB file")
                 .font(.headline)
-
             Text("The demo extracts spine-ordered XHTML text, chapter titles, metadata, and diagnostics using EpubKit.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
-
-            Button("Open EPUB") {
-                model.openEPUBPanel()
-            }
-            .buttonStyle(.borderedProminent)
+            Button("Open EPUB") { openEPUB() }
+                .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -148,18 +153,13 @@ struct ContentView: View {
                             Text(chapter.title ?? "Chapter \(chapter.order + 1)")
                                 .font(.title.bold())
                                 .lineLimit(2)
-
                             Text(chapter.href)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
-
                         Spacer()
-
-                        Button {
-                            model.copySelectedChapterText()
-                        } label: {
+                        Button { model.copySelectedChapterText() } label: {
                             Label("Copy Chapter", systemImage: "doc.on.doc")
                         }
                     }
@@ -190,6 +190,15 @@ struct ContentView: View {
         }
     }
 
+    private func openEPUB() {
+#if os(macOS)
+        model.openEPUBPanel()
+#else
+        isImporting = true
+#endif
+    }
+
+#if os(macOS)
     @ViewBuilder
     private var dropOverlay: some View {
         if isDropTargeted {
@@ -226,10 +235,9 @@ struct ContentView: View {
 
         return true
     }
+#endif
 }
 
 struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-    }
+    static var previews: some View { ContentView() }
 }
