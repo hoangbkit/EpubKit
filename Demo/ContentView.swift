@@ -58,16 +58,17 @@ struct ContentView: View {
                 List(selection: $model.selectedChapterID) {
                     Section("Chapters") {
                         ForEach(document.chapters) { chapter in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(chapter.title ?? "Chapter \(chapter.order + 1)")
-                                    .font(.headline)
-                                    .lineLimit(2)
-                                Text("\(chapter.characterCount.formatted()) characters")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                            NavigationLink(value: chapter.id) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(chapter.title ?? "Chapter \(chapter.order + 1)")
+                                        .font(.headline)
+                                        .lineLimit(2)
+                                    Text("\(chapter.characterCount.formatted()) characters")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.vertical, 4)
                             }
-                            .padding(.vertical, 4)
-                            .tag(chapter.id)
                         }
                     }
 
