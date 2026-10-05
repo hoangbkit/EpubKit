@@ -35,6 +35,12 @@ jobs:
       - name: Run package tests
         run: swift test
 
+      - name: Build package for iOS Simulator
+        run: |
+          xcodebuild build \
+            -scheme EpubKit-Package \
+            -destination "generic/platform=iOS Simulator"
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
