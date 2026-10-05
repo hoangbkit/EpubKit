@@ -3,8 +3,11 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var model = DemoViewModel()
+#if os(macOS)
     @State private var isDropTargeted = false
+#else
     @State private var isImporting = false
+#endif
 
     var body: some View {
         NavigationSplitView {
@@ -34,7 +37,7 @@ struct ContentView: View {
 #if os(macOS)
         .overlay(dropOverlay)
         .onDrop(of: [UTType.fileURL.identifier], isTargeted: $isDropTargeted, perform: handleDrop(providers:))
-#endif
+#else
         .fileImporter(
             isPresented: $isImporting,
             allowedContentTypes: [.epub],
@@ -43,6 +46,7 @@ struct ContentView: View {
             guard case .success(let urls) = result, let url = urls.first else { return }
             Task { await model.parse(url: url) }
         }
+#endif
     }
 
     private var sidebar: some View {
