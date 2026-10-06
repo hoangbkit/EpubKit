@@ -3,19 +3,25 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @StateObject private var model = DemoViewModel()
+#if os(macOS)
     @State private var isDropTargeted = false
+#else
+    @State private var isImporting = false
+#endif
 
     var body: some View {
         NavigationSplitView {
             sidebar
+#if os(macOS)
                 .navigationSplitViewColumnWidth(min: 280, ideal: 340, max: 440)
+#endif
         } detail: {
             detail
         }
         .toolbar {
             ToolbarItemGroup {
                 Button {
-                    model.openEPUBPanel()
+                    openEPUB()
                 } label: {
                     Label("Open EPUB", systemImage: "book")
                 }
@@ -28,32 +34,41 @@ struct ContentView: View {
                 .disabled(model.document == nil)
             }
         }
+#if os(macOS)
         .overlay(dropOverlay)
         .onDrop(of: [UTType.fileURL.identifier], isTargeted: $isDropTargeted, perform: handleDrop(providers:))
+#else
+        .fileImporter(
+            isPresented: $isImporting,
+            allowedContentTypes: [.epub],
+            allowsMultipleSelection: false
+        ) { result in
+            guard case .success(let urls) = result, let url = urls.first else { return }
+            Task { await model.parse(url: url) }
+        }
+#endif
     }
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header
-                .padding(16)
-
+            header.padding(16)
             Divider()
 
             if let document = model.document {
                 List(selection: $model.selectedChapterID) {
                     Section("Chapters") {
                         ForEach(document.chapters) { chapter in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(chapter.title ?? "Chapter \(chapter.order + 1)")
-                                    .font(.headline)
-                                    .lineLimit(2)
-
-                                Text("\(chapter.characterCount.formatted()) characters")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                            NavigationLink(value: chapter.id) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(chapter.title ?? "Chapter \(chapter.order + 1)")
+                                        .font(.headline)
+                                        .lineLimit(2)
+                                    Text("\(chapter.characterCount.formatted()) characters")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.vertical, 4)
                             }
-                            .padding(.vertical, 4)
-                            .tag(chapter.id)
                         }
                     }
 
@@ -121,20 +136,24 @@ struct ContentView: View {
             Image(systemName: "book.closed")
                 .font(.system(size: 42))
                 .foregroundStyle(.secondary)
-
-            Text("Open or drag an EPUB file")
+            Text("Open an EPUB file")
                 .font(.headline)
-
             Text("The demo extracts spine-ordered XHTML text, chapter titles, metadata, and diagnostics using EpubKit.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
+            HStack(spacing: 10) {
+                Button("Use Sample EPUB") {
+                    Task { await model.loadSampleEPUB() }
+                }
+                .buttonStyle(.borderedProminent)
 
-            Button("Open EPUB") {
-                model.openEPUBPanel()
+                Button("Pick EPUB File") {
+                    openEPUB()
+                }
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -148,18 +167,13 @@ struct ContentView: View {
                             Text(chapter.title ?? "Chapter \(chapter.order + 1)")
                                 .font(.title.bold())
                                 .lineLimit(2)
-
                             Text(chapter.href)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
-
                         Spacer()
-
-                        Button {
-                            model.copySelectedChapterText()
-                        } label: {
+                        Button { model.copySelectedChapterText() } label: {
                             Label("Copy Chapter", systemImage: "doc.on.doc")
                         }
                     }
@@ -190,6 +204,15 @@ struct ContentView: View {
         }
     }
 
+    private func openEPUB() {
+#if os(macOS)
+        model.openEPUBPanel()
+#else
+        isImporting = true
+#endif
+    }
+
+#if os(macOS)
     @ViewBuilder
     private var dropOverlay: some View {
         if isDropTargeted {
@@ -226,10 +249,9 @@ struct ContentView: View {
 
         return true
     }
+#endif
 }
 
 struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-    }
+    static var previews: some View { ContentView() }
 }

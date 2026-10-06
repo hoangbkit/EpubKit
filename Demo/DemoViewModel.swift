@@ -1,7 +1,13 @@
-import AppKit
+import Combine
 import EpubKit
 import Foundation
 import UniformTypeIdentifiers
+
+#if os(macOS)
+import AppKit
+#elseif os(iOS)
+import UIKit
+#endif
 
 @MainActor
 final class DemoViewModel: ObservableObject {
@@ -21,6 +27,7 @@ final class DemoViewModel: ObservableObject {
         document?.metadata.title ?? sourceURL?.deletingPathExtension().lastPathComponent ?? "No EPUB Loaded"
     }
 
+    #if os(macOS)
     func openEPUBPanel() {
         let panel = NSOpenPanel()
         panel.title = "Open EPUB"
@@ -35,6 +42,16 @@ final class DemoViewModel: ObservableObject {
         Task {
             await parse(url: url)
         }
+    }
+    #endif
+
+    func loadSampleEPUB() async {
+        guard let url = Bundle.main.url(forResource: "minimal", withExtension: "epub") else {
+            errorMessage = "Bundled sample EPUB is missing."
+            return
+        }
+
+        await parse(url: url)
     }
 
     func parse(url: URL) async {
@@ -72,14 +89,21 @@ final class DemoViewModel: ObservableObject {
 
     func copySelectedChapterText() {
         guard let text = selectedChapter?.text, !text.isEmpty else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        copy(text)
     }
 
     func copyAllText() {
         guard let text = document?.plainText, !text.isEmpty else { return }
+        copy(text)
+    }
+
+    private func copy(_ text: String) {
+        #if os(macOS)
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
+        #elseif os(iOS)
+        UIPasteboard.general.string = text
+        #endif
     }
 }
 

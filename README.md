@@ -1,6 +1,6 @@
 # EpubKit
 
-A focused Swift Package for extracting clean, structured, TTS-ready readable content from `.epub` files on macOS.
+A focused Swift Package for extracting clean, structured, TTS-ready readable content from `.epub` files on macOS and iOS.
 
 EpubKit is **not an EPUB renderer**. It is an ingestion layer for apps that need metadata, cover artwork, a structured table of contents, spine-ordered chapters, readable text, diagnostics, and safe archive handling.
 
@@ -20,8 +20,9 @@ EPUB archive
 
 ## Requirements
 
-- Swift 5.9+
+- Swift 6.0+
 - macOS 15+
+- iOS 26+
 
 ## Features
 
@@ -116,6 +117,37 @@ for chapter in document.chapters {
 ```
 
 `EPUBCover` intentionally exposes raw data rather than `NSImage` or `UIImage`, keeping the package independent of AppKit and UIKit.
+
+### iOS file import
+
+EpubKit accepts file URLs and intentionally leaves document picking and security-scoped access to the host app. Keep the security scope active until asynchronous parsing finishes:
+
+```swift
+import SwiftUI
+import UniformTypeIdentifiers
+import EpubKit
+
+.fileImporter(
+    isPresented: $isImporting,
+    allowedContentTypes: [UTType(filenameExtension: "epub") ?? .data]
+) { result in
+    guard case .success(let url) = result else { return }
+
+    Task {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer {
+            if accessing {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        let document = try await EPUBParser().parseAsync(fileURL: url)
+        // Store or use document in the host app.
+    }
+}
+```
+
+The host application remains responsible for bookmarks or other persistent file access. EpubKit does not retain security-scoped URLs.
 
 `EPUBTOCItem` preserves nested navigation through its `children` array. Chapter extraction still follows OPF spine order; the TOC is navigation metadata, not the source of reading order.
 
@@ -297,26 +329,29 @@ EpubKit should remain the ingestion layer. The host application should own:
 
 ## Demo app
 
-A macOS SwiftUI demo is included at:
+A shared SwiftUI demo is included in `Demo/` with two XcodeGen targets:
 
-```text
-Demo/EpubKitDemo
-```
+- `EpubKitDemo` — macOS 15+
+- `EpubKitDemo-iOS` — iOS 26+
 
-The demo project is generated with XcodeGen from `Demo/EpubKitDemo/project.yml`; the generated `EpubKitDemo.xcodeproj` is intentionally not committed.
+Both the package and iOS Demo require iOS 26+.
+
+The demo project is generated with XcodeGen from `Demo/project.yml`; the generated `Demo/EpubKitDemo.xcodeproj` is intentionally not committed.
 
 Generate and open it with:
 
 ```sh
-cd Demo/EpubKitDemo
+cd Demo
 brew install xcodegen # once, if needed
-xcodegen generate
+xcodegen generate --spec project.yml
 open EpubKitDemo.xcodeproj
 ```
 
 It demonstrates:
 
-- `NSOpenPanel` EPUB import
+- a bundled sample EPUB for immediate parsing from the empty state
+- macOS `NSOpenPanel` import and drag-and-drop
+- iOS `fileImporter`
 - security-scoped file access
 - async parsing and progress
 - metadata and diagnostics
@@ -324,7 +359,9 @@ It demonstrates:
 - extracted-text preview
 - copying selected chapter text or all extracted text
 
-The generated project references the root repository as a local Swift Package dependency at `../..`.
+The generated project references the root repository as a local Swift Package dependency at `..`.
+
+The manual **Demo Release** workflow follows the same mycli artifact model used by Spokio, AppFoundation, and MacAppFoundation. It lets you choose `macOS`, `iOS`, or `both`, plus `Debug`, `Release`, or `both`. iOS builds are published as unsigned `.xcarchive.zip` files; macOS builds are published as unsigned universal `.app.zip` files.
 
 ## Testing
 
@@ -346,7 +383,7 @@ The package includes generated and fixture-based EPUB tests covering core parsin
 - parser options
 - async parsing and cancellation
 
-GitHub Actions runs `swift test` for pushes to `master` and pull requests targeting `master`. On the Apple Silicon macOS runner, CI also verifies `arm64`, generates the demo project with XcodeGen, and builds the `EpubKitDemo` scheme with `xcodebuild`.
+GitHub Actions workflows are manually triggered. **Fast CI** validates the package on macOS 26, runs package tests, and builds both the macOS and iOS Demo targets; building the iOS Demo compiles the local EpubKit package for a generic iOS Simulator. **Full CI** preserves macOS 15 Intel, macOS 15 Apple Silicon, and macOS 26 Apple Silicon validation; the macOS 26 job additionally builds the iOS Demo, providing the iOS package integration compile check. Package Release and Demo Release are separate manual workflows.
 
 ## Changelog
 

@@ -2,8 +2,14 @@ name: EpubKitDemo
 
 options:
   minimumXcodeGenVersion: 2.38.0
+  xcodeVersion: "26.0"
   deploymentTarget:
     macOS: "15.0"
+    iOS: "26.0"
+
+configs:
+  Debug: debug
+  Release: release
 
 packages:
   EpubKit:
@@ -13,6 +19,7 @@ targets:
   EpubKitDemo:
     type: application
     platform: macOS
+    deploymentTarget: "15.0"
     sources:
       - path: .
         excludes:
@@ -21,13 +28,16 @@ targets:
           - Info.plist
           - EpubKitDemo.entitlements
           - EpubKitDemo.xcodeproj
+      - path: ../Tests/EpubKitTests/Fixtures/minimal.epub
+        buildPhase: resources
     dependencies:
       - package: EpubKit
         product: EpubKit
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hoangbkit.epubkit.demo
-        PRODUCT_NAME: "$(TARGET_NAME)"
+        PRODUCT_NAME: EpubKitDemo
+        DEVELOPMENT_TEAM: J458WW3452
         INFOPLIST_FILE: Info.plist
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: EpubKitDemo.entitlements
@@ -39,11 +49,56 @@ targets:
         SWIFT_VERSION: "5.0"
         SWIFT_EMIT_LOC_STRINGS: YES
 
+  EpubKitDemo-iOS:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: .
+        excludes:
+          - README.md
+          - project.yml
+          - Info.plist
+          - EpubKitDemo.entitlements
+          - EpubKitDemo.xcodeproj
+      - path: ../Tests/EpubKitTests/Fixtures/minimal.epub
+        buildPhase: resources
+    dependencies:
+      - package: EpubKit
+        product: EpubKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hoangbkit.epubkit.demo.ios
+        PRODUCT_NAME: EpubKitDemo
+        DEVELOPMENT_TEAM: J458WW3452
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: EpubKitDemo
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        CODE_SIGN_STYLE: Automatic
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        SWIFT_EMIT_LOC_STRINGS: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+
 schemes:
   EpubKitDemo:
     build:
       targets:
         EpubKitDemo: all
+    run:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+
+  EpubKitDemo-iOS:
+    build:
+      targets:
+        EpubKitDemo-iOS: all
     run:
       config: Debug
     profile:

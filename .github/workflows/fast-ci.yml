@@ -40,16 +40,34 @@ jobs:
 
       - name: Generate Demo project
         working-directory: Demo
-        run: xcodegen generate
+        run: xcodegen generate --spec project.yml
 
-      - name: Build Demo app
+      - name: Build macOS Demo
+        working-directory: Demo
         run: |
           xcodebuild \
-            -project Demo/EpubKitDemo.xcodeproj \
+            -project EpubKitDemo.xcodeproj \
             -scheme EpubKitDemo \
             -configuration Debug \
             -destination "platform=macOS,arch=arm64" \
-            -derivedDataPath DerivedData/EpubKitDemo \
+            -derivedDataPath "$PWD/.derivedData-macOS" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             build
+
+          test -f "$PWD/.derivedData-macOS/Build/Products/Debug/EpubKitDemo.app/Contents/Resources/minimal.epub"
+
+      - name: Build iOS Demo
+        working-directory: Demo
+        run: |
+          xcodebuild \
+            -project EpubKitDemo.xcodeproj \
+            -scheme EpubKitDemo-iOS \
+            -configuration Debug \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath "$PWD/.derivedData-iOS" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            build
+
+          test -f "$PWD/.derivedData-iOS/Build/Products/Debug-iphonesimulator/EpubKitDemo.app/minimal.epub"
